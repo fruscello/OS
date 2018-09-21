@@ -14,7 +14,7 @@ typedef int* memaddr;
 void scheduler(){
 	tprint("sono lo scheduler!!!\n");
 }
-void intHandler(){	//prendo per presupposto sia un interval timer interrupt
+void intHandler(){	
 	//reimposto il timer al valore corretto
 	*interval_timer=clock_rate;		
 	scheduler();
@@ -33,7 +33,7 @@ void intHandler(){	//prendo per presupposto sia un interval timer interrupt
 	
 }
 
-void sysHandler(){	//prendo per presupposto sia un interval timer interrupt
+void sysHandler(){	
 	state_t* old_state=(void*)SYSBK_OLDAREA;
 	int sysnum=old_state->a1;	//prendo i parametri della syscall
 	int a2=old_state->a2;
