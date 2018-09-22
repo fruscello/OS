@@ -1,21 +1,38 @@
 #include "/usr/include/uarm/libuarm.h"
-#include "/usr/include/uarm/ulibuarm.h"
+//#include "/usr/include/uarm/ulibuarm.h"
 #include "/usr/include/uarm/uARMtypes.h"
 #include "/usr/include/uarm/uARMconst.h"
+#include "./asl/asl.h"
+#include "./pcb/pcb_t.h"
+#include "./pcb/const.h"
 #include "syscall.h"
-#include "/usr/include/uarm/arch.h"
-int clock_wait;	//true se il prossimo interrupt dovra' risvegliare i processi waiting for clock
+int if_increase_priority=0;	//true se il prossimo interrupt dovra' incrementare la priorita'
+int increase_priority=0;	//time of the day dell'ultima volta che e' stata increamentata la priorita' 
+int if_wait_clock=0;		//true se il prossimo interrupt dovra' sbloccare i processi in wait for clock
+int wait_clock=0;		//time of the day dell'ultima volta che e' stato chiamato il clock da 100ms
 int *interval_timer=(int*)0x000002E4;	//punta all'interval timer
 int clock_rate=0x10000;
 int PIPPO=2;
+int *RAM_TOP_ADDR=(int*)0x000002D4;
+int RAM_TOP=0;
+
+
 state_t *new_interrupt=(state_t*)0x00007058;
 //void ** fast_interrupt_pc=0x0000001C;
 typedef int* memaddr;
 void scheduler(){
 	tprint("sono lo scheduler!!!\n");
+	
+	/*pcb_t* next_proc=removeProcQ(&pcb_wait);
+	//forse va resettata la priorita'
+	insertProcQ(&pcb_wait, next_proc);
+	state_t state=next_proc->p_s;
+	LDST(&state);*/
+	
 }
-void intHandler(){	
+void intHandler(){
 	//reimposto il timer al valore corretto
+	
 	*interval_timer=clock_rate;		
 	scheduler();
 	tprint("scheduler finito!\n");
@@ -32,8 +49,24 @@ void intHandler(){
 	}*/
 	
 }
-
-void sysHandler(){	
+void passup(int type){		//type: 0 se sys, 1 se TLB, 2 se program trap
+	state_t *state;
+	if(type=0){
+		state=(state_t*)SYSBK_OLDAREA;
+		*sys5_sys_old=*state;
+		LDST(sys5_sys_new);
+	}else if(type=1){
+		state=(state_t*)TLB_OLDAREA;
+		*sys5_TLB_old=*state;
+		LDST(sys5_TLB_new);
+	}else if(type=2){
+		state=(state_t*)PGMTRAP_OLDAREA;
+		*sys5_PGMT_old=*state;
+		LDST(sys5_PGMT_new);
+	}else 
+		tprint("erro passup!!!!\n");
+}
+void sysHandler(){
 	state_t* old_state=(void*)SYSBK_OLDAREA;
 	int sysnum=old_state->a1;	//prendo i parametri della syscall
 	int a2=old_state->a2;
@@ -45,6 +78,8 @@ void sysHandler(){
 			tprint("syscalled!!!!\n");
 			a2--;
 		}
+	}else if((sysnum>10)&&(sysnum<=20)){	//caso in cui debba essere gestito a livello superiore
+		passup(0);
 	}
 	scheduler();
 	while(1){
@@ -61,11 +96,26 @@ void sysHandler(){
 	}*/
 	
 }
+void TLBHandler(){
+	passup(1);
+	
+}
+void PGMTHandler(){
+	passup(2);
+	
+}
 void pippoInutile(){
 	//SYSCALL(2,5,0,0);
-	int i=0;
-	while(i<20)
-		tprint("pippo e' inutile\n");
+	int j=0;
+	while(1){
+		tprint("quanto e' inutile pippo?\n");
+		int i=0;
+		while(i<j){
+			tprint("molto! ");
+			i++;
+		}
+		j++;
+	}	
 	while(1){}
 }
 void init(){
@@ -117,10 +167,11 @@ void initState(void* state2init, void* hand,int new) {
 
 int main(){			
 	*interval_timer=clock_rate;
+	RAM_TOP=*RAM_TOP_ADDR;
 	
 	initState((void*)INT_NEWAREA, intHandler,1);
-	initState((void*)TLB_NEWAREA, sysHandler,1);
-	initState((void*)PGMTRAP_NEWAREA, sysHandler,1);
+	initState((void*)TLB_NEWAREA, TLBHandler,1);
+	initState((void*)PGMTRAP_NEWAREA, PGMTHandler,1);
 	initState((void*)SYSBK_NEWAREA, sysHandler,1);
 	int i=0;
 	/*while(i<20){
@@ -131,7 +182,12 @@ int main(){
 	//STATUS_ALL_INT_ENABLE
 	state_t newState;
 	initState(&newState, pippoInutile,0);
-	LDST(&newState);
+	pcb_t* pid;
+	if(CREATEPROCESS(&newState,5,&pid)!=0)
+		tprint("error in create process (main)!!!!!\n");
+	scheduler();
+	//LDST(&newState);
+	
 	tprint("starting!!!!\n");
 	SYSCALL(1,0,0,0);
 	tprint("syscall finished!!!!!\n");
