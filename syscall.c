@@ -10,7 +10,7 @@ void P(int *semaddr){
 	}else{							//caso il processo viene bloccato
 		pcb_t * pid=removeProcQ(&pcb_wait);		//rimuovo il processo in testa a quelli in esecuzione e quindi il processo chiamante
 		if (pid!=0){					//se non ci sono stati problemi,  
-			int insertBlocked(semaddr,pid);		//il processo viene inserito tra i processi bloccati dal semaforo semaddr
+			insertBlocked(semaddr,pid);		//il processo viene inserito tra i processi bloccati dal semaforo semaddr
 		}
 	}
 }
@@ -65,4 +65,4 @@ int TERMINATEPROCESS(void *pid){
 	if(pid!=NULL){
 		return 0;
 	}
-}*/
+}
