@@ -183,8 +183,8 @@ int main(){
 	state_t newState;
 	initState(&newState, pippoInutile,0);
 	pcb_t* pid;
-	if(CREATEPROCESS(&newState,5,&pid)!=0)
-		tprint("error in create process (main)!!!!!\n");
+	//if(CREATEPROCESS(&newState,5,&pid)!=0)
+	//	tprint("error in create process (main)!!!!!\n");
 	scheduler();
 	//LDST(&newState);
 	
